@@ -1,9 +1,11 @@
-import { ChatOpenAI } from 'langchain/chat_models/openai';
-import { ChatPromptTemplate } from 'langchain/prompts';
-import { RunnableSequence } from 'langchain/schema/runnable';
-import { StringOutputParser } from 'langchain/schema/output_parser';
-import type { Document } from 'langchain/document';
-import type { VectorStoreRetriever } from 'langchain/vectorstores/base';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { RunnableSequence, RunnableFunc } from '@langchain/core/runnables';
+import { StringOutputParser } from '@langchain/core/output_parsers';
+import type { Document } from '@langchain/core/documents';
+import type { VectorStoreRetriever } from '@langchain/core/vectorstores';
+
+// ... rest of the file remains the same
 
 const CONDENSE_TEMPLATE = `Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.
 
@@ -53,7 +55,13 @@ export const makeChain = (retriever: VectorStoreRetriever) => {
   ]);
 
   // Retrieve documents based on a query, then format them.
-  const retrievalChain = retriever.pipe(combineDocumentsFn);
+
+  const retrievalChain = retriever.pipe(
+    RunnableSequence.from([
+      RunnableFunc.from(combineDocumentsFn),
+      RunnableFunc.from((input) => input)
+    ])
+  );
 
   // Generate an answer to the standalone question based on the chat history
   // and retrieved documents. Additionally, we return the source documents directly.
