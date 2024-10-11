@@ -55,13 +55,7 @@ export const makeChain = (retriever: VectorStoreRetriever) => {
   ]);
 
   // Retrieve documents based on a query, then format them.
-
-  const retrievalChain = retriever.pipe(
-    RunnableSequence.from([
-      RunnableFunc.from(combineDocumentsFn),
-      RunnableFunc.from((input) => input)
-    ])
-  );
+  const retrievalChain = retriever.pipe(combineDocumentsFn);
 
   // Generate an answer to the standalone question based on the chat history
   // and retrieved documents. Additionally, we return the source documents directly.
