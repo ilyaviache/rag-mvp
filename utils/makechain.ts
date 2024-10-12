@@ -2,7 +2,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence, RunnableFunc } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import type { Document } from '@langchain/core/documents';
+import type { Document, DocumentInterface } from '@langchain/core/documents';
 import type { VectorStoreRetriever } from '@langchain/core/vectorstores';
 
 // ... rest of the file remains the same
@@ -55,7 +55,7 @@ export const makeChain = (retriever: VectorStoreRetriever) => {
   ]);
 
   // Retrieve documents based on a query, then format them.
-  const retrievalChain = retriever.pipe(combineDocumentsFn);
+  const retrievalChain = retriever.pipe(combineDocumentsFn as RunnableFunc<DocumentInterface<Record<string, any>>[], string>);
 
   // Generate an answer to the standalone question based on the chat history
   // and retrieved documents. Additionally, we return the source documents directly.
