@@ -1,0 +1,26 @@
+name: Set Up DigitalOcean Droplet
+
+on:
+  workflow_dispatch:  # Trigger this workflow manually from the Actions tab or using GitHub CLI
+  
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+
+    env:
+      APP_PATH: /home/deploy/rag-mvp  # Define reusable app path
+
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+
+      - name: Set up server directories
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.DO_SSH_USER }}@${{ secrets.DO_SERVER_IP }} << 'EOF'
+            # Create necessary directories for releases and shared files
+            mkdir -p $APP_PATH/releases
+            mkdir -p $APP_PATH/shared/docs
+            touch $APP_PATH/shared/.env
+          EOF
