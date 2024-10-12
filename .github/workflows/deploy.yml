@@ -54,7 +54,7 @@ jobs:
             APP_NAME="$APP_NAME"
             
             # Create release directory
-            mkdir -p $RELEASE_DIR
+            sudo mkdir -p $RELEASE_DIR
             
             # Clone the latest code into the new release folder
             git clone https://github.com/ilyaviache/rag-mvp.git $RELEASE_DIR
