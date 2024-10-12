@@ -19,8 +19,8 @@ jobs:
       - name: Set up server directories
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.DO_SSH_USER }}@${{ secrets.DO_SERVER_IP }} << 'EOF'
-            # Create necessary directories for releases and shared files
-            mkdir -p $APP_PATH/releases
-            mkdir -p $APP_PATH/shared/docs
-            touch $APP_PATH/shared/.env
+            # Use sudo to create directories and files
+            sudo mkdir -p /releases
+            sudo mkdir -p /docs
+            sudo touch /.env
           EOF
