@@ -23,16 +23,11 @@ jobs:
         run: npm install
 
       - name: Prepare for deployment
-        run: |
-          npm run build
+        run: npm run build
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
-
-    env:
-      APP_PATH: /home/deploy/rag-mvp  # Define reusable app path
-      APP_NAME: rag-mvp  # The name of your PM2 process
 
     steps:
       - name: Checkout code
@@ -43,47 +38,16 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
 
-      - name: Deploy to DigitalOcean Droplet
+      - name: Install Ansible
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.DO_SSH_USER }}@${{ secrets.DO_SERVER_IP }} << 'EOF'
-            # Variables
-            RELEASE_DIR="$APP_PATH/releases/$(date +'%Y%m%d%H%M%S')"
-            CURRENT_DIR="$APP_PATH/current"
-            ENV_FILE="$APP_PATH/.env"
-            DOCS_DIR="$APP_PATH/docs"
-            APP_NAME="$APP_NAME"
-            
-            # Create release directory
-            sudo mkdir -p $RELEASE_DIR
-            
-            # Clone the latest code into the new release folder
-            git clone https://github.com/ilyaviache/rag-mvp.git $RELEASE_DIR
-            
-            # Copy the .env file into the new release folder
-            cp $ENV_FILE $RELEASE_DIR/.env
-            
-            # Create symlink for the docs folder
-            ln -sfn $DOCS_DIR $RELEASE_DIR/docs
-            
-            # Go to the release folder and install dependencies
-            cd $RELEASE_DIR
-            npm install
-            npm run build
-            
-            # Update symlink to point to the new release
-            ln -sfn $RELEASE_DIR $CURRENT_DIR
+          sudo apt-get update
+          sudo apt-get install -y ansible
 
-            # Check if the PM2 process is running
-            if pm2 describe $APP_NAME > /dev/null; then
-              # If running, restart the process
-              echo "Restarting existing PM2 process..."
-              pm2 restart $APP_NAME
-            else
-              # If not running, start a new process
-              echo "Starting new PM2 process..."
-              pm2 start $CURRENT_DIR/app.js --name $APP_NAME --env production
-            fi
-            
-            # Save PM2 process list to start it on system reboot
-            pm2 save
-          EOF
+      - name: Configure Ansible Inventory
+        run: |
+          echo '[droplet]' > .deploy/inventory.ini
+          echo '${{ secrets.DO_SERVER_IP }} ansible_user=${{ secrets.DO_SSH_USER }} ansible_ssh_common_args="-o StrictHostKeyChecking=no"' >> .deploy/inventory.ini
+
+      - name: Run Ansible Playbook
+        run: |
+          ansible-playbook -i .deploy/inventory.ini .deploy/ansible-deploy.yml

@@ -1,0 +1,96 @@
+- hosts: droplet
+  become: yes
+  vars:
+    app_path: /home/deploy/apps/rag-mvp
+    app_name: rag-mvp
+    releases_dir: "{{ app_path }}/releases"
+    release_dir: "{{ releases_dir }}/{{ ansible_date_time.iso8601 }}"
+    current_dir: "{{ app_path }}/current"
+    env_file: "{{ app_path }}/.env"
+    docs_dir: "{{ app_path }}/docs"
+
+  tasks:
+    - name: Ensure releases directory exists
+      file:
+        path: "{{ releases_dir }}"
+        state: directory
+        owner: deploy
+        group: deploy
+        mode: '0755'
+
+    - name: Ensure release directory exists
+      file:
+        path: "{{ release_dir }}"
+        state: directory
+        owner: deploy
+        group: deploy
+        mode: '0755'
+
+    - name: Clone repository into release directory
+      git:
+        repo: 'git@github.com:ilyaviache/rag-mvp.git'
+        dest: "{{ release_dir }}"
+        version: 'main'
+      become: yes
+      become_user: deploy
+      environment:
+        GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no'
+
+    - name: Copy .env file to release directory
+      copy:
+        src: "{{ env_file }}"
+        dest: "{{ release_dir }}/.env"
+        remote_src: yes
+
+    - name: Create symlink for docs directory
+      file:
+        src: "{{ docs_dir }}"
+        dest: "{{ release_dir }}/docs"
+        state: link
+        force: yes
+
+    - name: Install npm dependencies
+      npm:
+        path: "{{ release_dir }}"
+        production: yes
+
+    - name: Run npm build
+      command: npm run build
+      args:
+        chdir: "{{ release_dir }}"
+
+    - name: Update current symlink to new release
+      file:
+        src: "{{ release_dir }}"
+        dest: "{{ current_dir }}"
+        state: link
+        force: yes
+
+    - name: Restart or start PM2 process
+      shell: |
+        if pm2 describe {{ app_name }} > /dev/null; then
+          pm2 restart {{ app_name }}
+        else
+          pm2 start {{ current_dir }}/app.js --name {{ app_name }} --env production
+        fi
+        pm2 save
+      args:
+        executable: /bin/bash
+
+    - name: Find all release directories
+      find:
+        path: "{{ releases_dir }}"
+        file_type: directory
+        depth: 1
+      register: releases
+
+    - name: Determine releases to delete
+      set_fact:
+        releases_to_delete: "{{ releases.files | map(attribute='path') | sort | reverse | list |  [5:] }}"
+
+    - name: Remove old releases, keeping only the latest 5
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ releases_to_delete }}"
+      when: releases_to_delete | length > 0
