@@ -66,16 +66,18 @@
         state: link
         force: yes
 
-    - name: Restart or start PM2 process
-      shell: |
-        if pm2 describe {{ app_name }} > /dev/null; then
-          pm2 restart {{ app_name }}
-        else
-          pm2 start {{ current_dir }}/app.js --name {{ app_name }} --env production
-        fi
-        pm2 save
+    - name: Set ownership of current directory
+      file:
+        path: "{{ current_dir }}"
+        owner: deploy
+        group: deploy
+        recurse: yes
+
+    - name: Start or reload PM2 process using ecosystem file
+      shell: pm2 startOrReload ecosystem.config.js
       args:
-        executable: /bin/bash
+        chdir: "{{ current_dir }}"
+      become_user: deploy
 
     - name: Find all release directories
       find:
